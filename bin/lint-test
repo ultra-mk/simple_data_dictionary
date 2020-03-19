@@ -1,0 +1,7 @@
+#!/bin/bash
+
+set -e
+
+BINDIR="$( dirname "${BASH_SOURCE[0]}" )"
+
+$BINDIR/lint && $BINDIR/test

@@ -1,0 +1,16 @@
+[[source]]
+url = 'https://pypi.python.org/simple'
+verify_ssl = true
+name = 'pypi'
+
+[requires]
+python_version = "3.8"
+
+[dev-packages]
+flake8 = "*"
+black = "==19.3b0"
+coverage = "==4.5.3"
+mypy = ">=0.761"
+
+[packages]
+snowflake-sqlalchemy = "==1.2.0"
