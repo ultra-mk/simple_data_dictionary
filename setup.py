@@ -7,9 +7,7 @@ setup(
     packages=find_packages(),
     entry_points={
         "console_scripts": [
-            # "task = snowflake_alerts:task_alerts.main",
-            # "pipe = snowflake_alerts:pipe_alerts.main",
-            # "cluster = snowflake_alerts:cluster_alerts.main",
+            "fetch = simple_data_dictionary:snowflake_fetcher.main",
         ]
     },
 )

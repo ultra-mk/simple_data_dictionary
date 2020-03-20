@@ -1,6 +1,6 @@
 IMAGE="builtin/simple-data-dictionary"
 SSH_PRIVATE_KEY="$$(cat "${BUILTIN_SSH_PRIVATE_KEY}")"
-DOCKER_RUN=docker run --env-file .env -e SNOWFLAKE_USER=${SNOWFLAKE_USER} -e SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD} -e SLACK_TOKEN=${SLACK_TOKEN} $(IMAGE)
+DOCKER_RUN=docker run -v $$(pwd)/csvs:/builtin/csvs --env-file .env -e SNOWFLAKE_USER=${SNOWFLAKE_USER} -e SNOWFLAKE_PASSWORD=${SNOWFLAKE_PASSWORD} -e SLACK_TOKEN=${SLACK_TOKEN} $(IMAGE)
 
 lint-test: build
 	$(DOCKER_RUN) bin/lint-test
@@ -27,8 +27,8 @@ lint: build
 test: build
 	$(DOCKER_RUN) bin/test
 
-run-task: build
-	$(DOCKER_RUN) task 
+run-fetch: build
+	$(DOCKER_RUN) fetch 
 
 run-pipe: build
 	$(DOCKER_RUN) pipe
