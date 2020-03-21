@@ -1,6 +1,7 @@
 import os
-from pathlib import Path
 
+# from pathlib import Path
+from typing import Tuple
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -32,9 +33,9 @@ def get_tables(connection: Engine) -> pd.DataFrame:
     return df
 
 
-def db_schema_table_nodes_to_csv(df: pd.DataFrame) -> None:
-    """writes the db, schema and table nodes to csv"""
-    csvs_path = str(f"{Path.cwd()}/csvs")
+def db_schema_table_dfs(df: pd.DataFrame) -> Tuple[pd.DataFrame]:
+    """transforms the df into separate dfs for each node type"""
+    # csvs_path = str(f"{Path.cwd()}/csvs")
     # glue these headings to the dfs
     # db_header = ["dbId:ID", "db", ":LABEL"]
     # schema_header = ["schemaId:ID", "schema", ":LABEL"]
@@ -44,25 +45,29 @@ def db_schema_table_nodes_to_csv(df: pd.DataFrame) -> None:
     schemas = df[["table_schema", "schema_id"]].drop_duplicates("schema_id")
     tables = df[["table_name", "table_id", "row_count"]].drop_duplicates("table_id")
     # TODO: have it return a list of dfs.
-    dbs.to_csv(f"{csvs_path}/db.csv", index=False)
-    schemas.to_csv(f"{csvs_path}/schemas.csv", index=False)
-    tables.to_csv(f"{csvs_path}/tables.csv", index=False)
+    return (dbs, schemas, tables)
+    # dbs.to_csv(f"{csvs_path}/db.csv", index=False)
+    # schemas.to_csv(f"{csvs_path}/schemas.csv", index=False)
+    # tables.to_csv(f"{csvs_path}/tables.csv", index=False)
 
 
 def db_schema_tables_rels_to_csv(df: pd.DataFrame) -> None:
     """writes the relationships to csv"""
-    csvs_path = str(f"{Path.cwd()}/csvs")
+    pass
+    # csvs_path = str(f"{Path.cwd()}/csvs")
     # rel_header = [":START_ID", ":END_ID", ":TYPE"]
-    df["rel_type"] = df.apply(lambda row: "BELONGS_TO", axis=1)
-    dbs_schema = df[["table_catalog", "schema_id", "rel_type"]].drop_duplicates()
-    schemas_tables = df[["schema_id", "table_id", "rel_type"]].drop_duplicates()
-    dbs_schema.to_csv(f"{csvs_path}/rels/dbs_schemas.csv")
-    schemas_tables.to_csv(f"{csvs_path}/rels/schemas_tables.csv")
+    # df["rel_type"] = df.apply(lambda row: "BELONGS_TO", axis=1)
+    # dbs_schema = df[["table_catalog", "schema_id", "rel_type"]].drop_duplicates()
+    # schemas_tables = df[["schema_id", "table_id", "rel_type"]].drop_duplicates()
+    # return None
+    # dbs_schema.to_csv(f"{csvs_path}/rels/dbs_schemas.csv")
+
+    # schemas_tables.to_csv(f"{csvs_path}/rels/schemas_tables.csv")
 
 
 def main():
     engine = create_engine(f"snowflake://{user}:{password}@{account}/")
     connection = engine.connect()
     df = get_tables(connection)
-    print(db_schema_table_nodes_to_csv(df))
+    print(db_schema_table_dfs(df))
     print(db_schema_tables_rels_to_csv(df))
