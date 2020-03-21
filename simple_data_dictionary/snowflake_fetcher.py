@@ -1,8 +1,7 @@
-import csv
-from dataclasses import dataclass, field
 import os
 from pathlib import Path
-from typing import List
+
+import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
 
@@ -14,46 +13,56 @@ warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
 DATABASES = ["GO", "DEVSANDBOX_RAW_DATA"]
 
 
-@dataclass
-class Schema:
-    database: str
-    schema: str
-    schema_id: str = field(init=False)
-
-    def __post_init__(self):
-        self.schema_id = f"{self.database.lower()}_{self.schema.lower()}"
-
-
-def get_schemas(connection: Engine) -> List[Schema]:
-    """returns a list of databases"""
-    schemas = []
+def get_tables(connection: Engine) -> pd.DataFrame:
+    dfs = []
     connection.execute(f"USE WAREHOUSE {warehouse};")
+    query = (
+        "SELECT TABLE_CATALOG, TABLE_SCHEMA, "
+        "concat(TABLE_CATALOG,'_',TABLE_SCHEMA) as SCHEMA_ID, "
+        "TABLE_NAME, concat(SCHEMA_ID,'_', TABLE_NAME) as TABLE_ID, "
+        "ROW_COUNT, CREATED, LAST_ALTERED "
+        "FROM information_schema.TABLES "
+        "WHERE TABLE_SCHEMA NOT IN ('PUBLIC', 'INFORMATION_SCHEMA');"
+    )
     for db in DATABASES:
         connection.execute(f"USE DATABASE {db};")
-        query_result = connection.execute(
-            "SELECT CATALOG_NAME, SCHEMA_NAME "
-            "FROM INFORMATION_SCHEMA.SCHEMATA "
-            "WHERE SCHEMA_NAME NOT IN ('PUBLIC', 'INFORMATION_SCHEMA');"
-        ).fetchall()
-        for row in query_result:
-            schemas.append(Schema(*row))
-    return schemas
+        df = pd.read_sql(query, connection)
+        dfs.append(df)
+    df = pd.concat(dfs, ignore_index=True)
+    return df
 
 
-def db_nodes_to_csv(databases: List[str], csv_dir: Path) -> None:
-    """writes the database nodes to csv"""
-    header = ["dbId:ID", "db", ":Label"]
-    with open(f"{csv_dir}/db_nodes.csv", "w") as outfile:
-        writer = csv.writer(outfile)
-        writer.writerow(header)
-        for db in databases:
-            writer.writerow([db.lower(), db, "database"])
+def db_schema_table_nodes_to_csv(df: pd.DataFrame) -> None:
+    """writes the db, schema and table nodes to csv"""
+    csvs_path = str(f"{Path.cwd()}/csvs")
+    # glue these headings to the dfs
+    # db_header = ["dbId:ID", "db", ":LABEL"]
+    # schema_header = ["schemaId:ID", "schema", ":LABEL"]
+    # TODO: add in the datetime stuff too
+    # table_header = ["tableId:ID", "table", ":LABEL", "row_count:int"]
+    dbs = df[["table_catalog"]].drop_duplicates("table_catalog")
+    schemas = df[["table_schema", "schema_id"]].drop_duplicates("schema_id")
+    tables = df[["table_name", "table_id", "row_count"]].drop_duplicates("table_id")
+    # TODO: have it return a list of dfs.
+    dbs.to_csv(f"{csvs_path}/db.csv", index=False)
+    schemas.to_csv(f"{csvs_path}/schemas.csv", index=False)
+    tables.to_csv(f"{csvs_path}/tables.csv", index=False)
+
+
+def db_schema_tables_rels_to_csv(df: pd.DataFrame) -> None:
+    """writes the relationships to csv"""
+    csvs_path = str(f"{Path.cwd()}/csvs")
+    # rel_header = [":START_ID", ":END_ID", ":TYPE"]
+    df["rel_type"] = df.apply(lambda row: "BELONGS_TO", axis=1)
+    dbs_schema = df[["table_catalog", "schema_id", "rel_type"]].drop_duplicates()
+    schemas_tables = df[["schema_id", "table_id", "rel_type"]].drop_duplicates()
+    dbs_schema.to_csv(f"{csvs_path}/rels/dbs_schemas.csv")
+    schemas_tables.to_csv(f"{csvs_path}/rels/schemas_tables.csv")
 
 
 def main():
     engine = create_engine(f"snowflake://{user}:{password}@{account}/")
     connection = engine.connect()
-    csv_dir = Path(f"{Path.cwd()}/csvs")
-    schemas = get_schemas(connection)
-    print(schemas)
-    db_nodes_to_csv(DATABASES, csv_dir)
+    df = get_tables(connection)
+    print(db_schema_table_nodes_to_csv(df))
+    print(db_schema_tables_rels_to_csv(df))

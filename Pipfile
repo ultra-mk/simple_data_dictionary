@@ -14,3 +14,4 @@ mypy = ">=0.761"
 
 [packages]
 snowflake-sqlalchemy = "==1.2.0"
+pandas = "==1.0.3"
