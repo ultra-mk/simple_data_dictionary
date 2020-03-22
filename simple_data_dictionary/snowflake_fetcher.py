@@ -45,6 +45,7 @@ def db_df(df: pd.DataFrame) -> pd.DataFrame:
 def schema_df(df: pd.DataFrame) -> pd.DataFrame:
     """transforms the query result into a df for schemas"""
     df = df[["table_catalog", "table_schema"]].drop_duplicates("table_schema")
+    # TODO: make these fs trings
     df["Id:ID"] = df.apply(
         lambda row: row["table_catalog"] + "_" + row["table_schema"], axis=1
     )
@@ -54,8 +55,30 @@ def schema_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def db_schema_tables_rels_to_csv(df: pd.DataFrame) -> None:
-    """writes the relationships to csv"""
+def table_df(df: pd.DataFrame) -> pd.DataFrame:
+    # TODO: add the datetime stuff.
+    df = df[["table_catalog", "table_schema", "table_name", "row_count"]]
+    df["Id:ID"] = df.apply(
+        # TODO: make these fstrings
+        lambda row: row["table_catalog"]
+        + "_"
+        + row["table_schema"]
+        + "_"
+        + row["table_name"],
+        axis=1,
+    )
+    df["name"] = df["table_name"]
+    df[":LABEL"] = "table"
+    df["ROW_COUNT"] = df["row_count"]
+    df.drop(
+        columns=["table_catalog", "table_schema", "table_name", "row_count"],
+        inplace=True,
+    )
+    return df
+
+
+def rels_df(df: pd.DataFrame) -> pd.DataFrame:
+    """creates a dataframe of the relationships"""
     pass
     # csvs_path = str(f"{Path.cwd()}/csvs")
     # rel_header = [":START_ID", ":END_ID", ":TYPE"]
@@ -72,4 +95,4 @@ def main():
     engine = create_engine(f"snowflake://{user}:{password}@{account}/")
     connection = engine.connect()
     df = get_tables(connection)
-    print(db_df(df))
+    print(table_df(df))

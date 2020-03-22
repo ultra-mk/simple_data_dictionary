@@ -18,7 +18,7 @@ class TestSnowflakeFetcher(unittest.TestCase):
         self.assertEqual(list(actual["Id:ID"]), ["GO", "DEVSANDBOX_RAW_DATA"])
         self.assertEqual(actual.shape, (2, 3))
 
-    def test_tansform_schema_df(self):
+    def test_transform_schema_df(self):
         data = {
             "table_catalog": ["GO", "GO", "DEVSANDBOX_RAW_DATA"],
             "table_schema": ["GO", "GO", "EVENTS"],
@@ -30,3 +30,19 @@ class TestSnowflakeFetcher(unittest.TestCase):
         self.assertEqual(list(actual.columns), ["Id:ID", "name", ":LABEL"])
         self.assertEqual(list(actual["Id:ID"]), ["GO_GO", "DEVSANDBOX_RAW_DATA_EVENTS"])
         self.assertEqual(actual.shape, (2, 3))
+
+    def test_transform_table_df(self):
+        data = {
+            "table_catalog": ["GO", "GO", "DEVSANDBOX_RAW_DATA"],
+            "table_schema": ["GO", "GO", "EVENTS"],
+            "table_name": ["BLOGS", "COMPANIES", "EVENTS"],
+            "row_count": [100, 200, 300],
+        }
+        input_df = pd.DataFrame(data=data)
+        actual = sf.table_df(input_df)
+        self.assertEqual(list(actual.columns), ["Id:ID", "name", ":LABEL", "ROW_COUNT"])
+        self.assertEqual(
+            list(actual["Id:ID"]),
+            ["GO_GO_BLOGS", "GO_GO_COMPANIES", "DEVSANDBOX_RAW_DATA_EVENTS_EVENTS"],
+        )
+        self.assertEqual(actual.shape, (3, 4))
