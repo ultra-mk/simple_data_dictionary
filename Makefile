@@ -30,11 +30,6 @@ test: build
 run-fetch: build
 	$(DOCKER_RUN) fetch 
 
-run-pipe: build
-	$(DOCKER_RUN) pipe
-
-run-cluster: build
-	$(DOCKER_RUN) cluster
 
 requirements.txt: Pipfile Pipfile.lock
 	pipenv lock --requirements > requirements.txt

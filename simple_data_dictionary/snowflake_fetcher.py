@@ -1,7 +1,6 @@
 import os
 
 # from pathlib import Path
-from typing import Tuple
 import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
@@ -14,13 +13,13 @@ warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
 DATABASES = ["GO", "DEVSANDBOX_RAW_DATA"]
 
 
+# TODO: make this just a simple extraction. Add the transform logic in the next method
 def get_tables(connection: Engine) -> pd.DataFrame:
     dfs = []
     connection.execute(f"USE WAREHOUSE {warehouse};")
     query = (
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, "
-        "concat(TABLE_CATALOG,'_',TABLE_SCHEMA) as SCHEMA_ID, "
-        "TABLE_NAME, concat(SCHEMA_ID,'_', TABLE_NAME) as TABLE_ID, "
+        "TABLE_NAME, "
         "ROW_COUNT, CREATED, LAST_ALTERED "
         "FROM information_schema.TABLES "
         "WHERE TABLE_SCHEMA NOT IN ('PUBLIC', 'INFORMATION_SCHEMA');"
@@ -33,22 +32,26 @@ def get_tables(connection: Engine) -> pd.DataFrame:
     return df
 
 
-def db_schema_table_dfs(df: pd.DataFrame) -> Tuple[pd.DataFrame]:
-    """transforms the df into separate dfs for each node type"""
-    # csvs_path = str(f"{Path.cwd()}/csvs")
-    # glue these headings to the dfs
-    # db_header = ["dbId:ID", "db", ":LABEL"]
-    # schema_header = ["schemaId:ID", "schema", ":LABEL"]
-    # TODO: add in the datetime stuff too
-    # table_header = ["tableId:ID", "table", ":LABEL", "row_count:int"]
-    dbs = df[["table_catalog"]].drop_duplicates("table_catalog")
-    schemas = df[["table_schema", "schema_id"]].drop_duplicates("schema_id")
-    tables = df[["table_name", "table_id", "row_count"]].drop_duplicates("table_id")
-    # TODO: have it return a list of dfs.
-    return (dbs, schemas, tables)
-    # dbs.to_csv(f"{csvs_path}/db.csv", index=False)
-    # schemas.to_csv(f"{csvs_path}/schemas.csv", index=False)
-    # tables.to_csv(f"{csvs_path}/tables.csv", index=False)
+def db_df(df: pd.DataFrame) -> pd.DataFrame:
+    """transforms the query result df into a df for databases"""
+    df = df[["table_catalog"]].drop_duplicates("table_catalog")
+    df["Id:ID"] = df["table_catalog"]
+    df["name"] = df["Id:ID"]
+    df[":LABEL"] = "database"
+    df.drop(columns=["table_catalog"], inplace=True)
+    return df
+
+
+def schema_df(df: pd.DataFrame) -> pd.DataFrame:
+    """transforms the query result into a df for schemas"""
+    df = df[["table_catalog", "table_schema"]].drop_duplicates("table_schema")
+    df["Id:ID"] = df.apply(
+        lambda row: row["table_catalog"] + "_" + row["table_schema"], axis=1
+    )
+    df["name"] = df["table_schema"]
+    df[":LABEL"] = "schema"
+    df.drop(columns=["table_catalog", "table_schema"], inplace=True)
+    return df
 
 
 def db_schema_tables_rels_to_csv(df: pd.DataFrame) -> None:
@@ -69,5 +72,4 @@ def main():
     engine = create_engine(f"snowflake://{user}:{password}@{account}/")
     connection = engine.connect()
     df = get_tables(connection)
-    print(db_schema_table_dfs(df))
-    print(db_schema_tables_rels_to_csv(df))
+    print(db_df(df))
