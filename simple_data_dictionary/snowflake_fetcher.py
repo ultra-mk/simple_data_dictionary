@@ -77,22 +77,29 @@ def table_df(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def rels_df(df: pd.DataFrame) -> pd.DataFrame:
-    """creates a dataframe of the relationships"""
-    pass
-    # csvs_path = str(f"{Path.cwd()}/csvs")
+def schema_rels_df(df: pd.DataFrame) -> pd.DataFrame:
+    """creates a dataframe of the relationships between schemas and databases"""
     # rel_header = [":START_ID", ":END_ID", ":TYPE"]
-    # df["rel_type"] = df.apply(lambda row: "BELONGS_TO", axis=1)
+    df[":START_ID"] = df["table_catalog"]
+    df[":END_ID"] = df["table_schema"]
+    df[":TYPE"] = df.apply(lambda row: "BELONGS_TO", axis=1)
+    df.drop(
+        columns=["table_catalog", "table_schema", "table_name", "row_count"],
+        inplace=True,
+    )
+    df.drop_duplicates(":END_ID", inplace=True)
     # dbs_schema = df[["table_catalog", "schema_id", "rel_type"]].drop_duplicates()
     # schemas_tables = df[["schema_id", "table_id", "rel_type"]].drop_duplicates()
     # return None
     # dbs_schema.to_csv(f"{csvs_path}/rels/dbs_schemas.csv")
 
     # schemas_tables.to_csv(f"{csvs_path}/rels/schemas_tables.csv")
+    return df
 
 
 def main():
     engine = create_engine(f"snowflake://{user}:{password}@{account}/")
     connection = engine.connect()
     df = get_tables(connection)
-    print(table_df(df))
+    schema_rels = schema_rels_df(df)
+    print(schema_rels)

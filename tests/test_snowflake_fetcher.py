@@ -46,3 +46,14 @@ class TestSnowflakeFetcher(unittest.TestCase):
             ["GO_GO_BLOGS", "GO_GO_COMPANIES", "DEVSANDBOX_RAW_DATA_EVENTS_EVENTS"],
         )
         self.assertEqual(actual.shape, (3, 4))
+
+    def test_schema_rels_df(self):
+        data = {
+            "table_catalog": ["GO", "GO", "DEVSANDBOX_RAW_DATA"],
+            "table_schema": ["GO", "GO", "EVENTS"],
+            "table_name": ["BLOGS", "COMPANIES", "EVENTS"],
+            "row_count": [100, 200, 300],
+        }
+        input_df = pd.DataFrame(data=data)
+        actual = sf.schema_rels_df(input_df)
+        self.assertEqual(list(actual.columns), [":START_ID", ":END_ID", ":TYPE"])
