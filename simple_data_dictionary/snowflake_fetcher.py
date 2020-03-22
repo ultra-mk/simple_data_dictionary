@@ -13,13 +13,13 @@ warehouse = os.environ["SNOWFLAKE_WAREHOUSE"]
 DATABASES = ["GO", "DEVSANDBOX_RAW_DATA"]
 
 
-# TODO: make this just a simple extraction. Add the transform logic in the next method
 def get_tables(connection: Engine) -> pd.DataFrame:
     dfs = []
     connection.execute(f"USE WAREHOUSE {warehouse};")
     query = (
         "SELECT TABLE_CATALOG, TABLE_SCHEMA, "
-        "TABLE_NAME, "
+        "contact(TABLE_CATALOG,'_', TABLE_SCHEMA) as SCHEMA_ID, "
+        "TABLE_NAME, concat(schema_id,'_',TABLE_NAME) as TABLE_ID, "
         "ROW_COUNT, CREATED, LAST_ALTERED "
         "FROM information_schema.TABLES "
         "WHERE TABLE_SCHEMA NOT IN ('PUBLIC', 'INFORMATION_SCHEMA');"
@@ -44,34 +44,29 @@ def db_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def schema_df(df: pd.DataFrame) -> pd.DataFrame:
     """transforms the query result into a df for schemas"""
-    df = df[["table_catalog", "table_schema"]].drop_duplicates("table_schema")
-    # TODO: make these fs trings
-    df["Id:ID"] = df.apply(
-        lambda row: row["table_catalog"] + "_" + row["table_schema"], axis=1
-    )
+    df = df[["schema_id", "table_schema"]].drop_duplicates("schema_id")
+    df["Id:ID"] = df["schema_id"]
     df["name"] = df["table_schema"]
     df[":LABEL"] = "schema"
-    df.drop(columns=["table_catalog", "table_schema"], inplace=True)
+    df.drop(columns=["schema_id", "table_schema"], inplace=True)
     return df
 
 
 def table_df(df: pd.DataFrame) -> pd.DataFrame:
     # TODO: add the datetime stuff.
-    df = df[["table_catalog", "table_schema", "table_name", "row_count"]]
-    df["Id:ID"] = df.apply(
-        # TODO: make these fstrings
-        lambda row: row["table_catalog"]
-        + "_"
-        + row["table_schema"]
-        + "_"
-        + row["table_name"],
-        axis=1,
-    )
+    df = df[["table_catalog", "table_schema", "table_name", "table_id", "row_count"]]
+    df["Id:ID"] = df["table_id"]
     df["name"] = df["table_name"]
     df[":LABEL"] = "table"
     df["ROW_COUNT"] = df["row_count"]
     df.drop(
-        columns=["table_catalog", "table_schema", "table_name", "row_count"],
+        columns=[
+            "table_catalog",
+            "table_schema",
+            "table_name",
+            "table_id",
+            "row_count",
+        ],
         inplace=True,
     )
     return df
@@ -79,21 +74,40 @@ def table_df(df: pd.DataFrame) -> pd.DataFrame:
 
 def schema_rels_df(df: pd.DataFrame) -> pd.DataFrame:
     """creates a dataframe of the relationships between schemas and databases"""
-    # rel_header = [":START_ID", ":END_ID", ":TYPE"]
     df[":START_ID"] = df["table_catalog"]
     df[":END_ID"] = df["table_schema"]
     df[":TYPE"] = df.apply(lambda row: "BELONGS_TO", axis=1)
     df.drop(
-        columns=["table_catalog", "table_schema", "table_name", "row_count"],
+        columns=[
+            "table_catalog",
+            "table_schema",
+            "table_name",
+            "row_count",
+            "schema_id",
+            "table_id",
+        ],
         inplace=True,
     )
     df.drop_duplicates(":END_ID", inplace=True)
-    # dbs_schema = df[["table_catalog", "schema_id", "rel_type"]].drop_duplicates()
-    # schemas_tables = df[["schema_id", "table_id", "rel_type"]].drop_duplicates()
-    # return None
-    # dbs_schema.to_csv(f"{csvs_path}/rels/dbs_schemas.csv")
+    return df
 
-    # schemas_tables.to_csv(f"{csvs_path}/rels/schemas_tables.csv")
+
+def table_rels_df(df: pd.DataFrame) -> pd.DataFrame:
+    df[":START_ID"] = df["schema_id"]
+    df[":END_ID"] = df["table_id"]
+    df[":TYPE"] = df.apply(lambda row: "BELONGS_TO", axis=1)
+    df.drop(
+        columns=[
+            "table_catalog",
+            "table_schema",
+            "table_name",
+            "row_count",
+            "schema_id",
+            "table_id",
+        ],
+        inplace=True,
+    )
+    df.drop_duplicates(":END_ID", inplace=True)
     return df
 
 
